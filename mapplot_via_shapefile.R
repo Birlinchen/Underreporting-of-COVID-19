@@ -7,12 +7,13 @@ library(sf)
 source("Functions.R")
 
 #================
-shp_states <- rgdal::readOGR(dsn="/Users/cj/Documents/美国新冠病毒案例/shp5m",layer = "cb_2018_us_state_5m")
+shp_states <- rgdal::readOGR(dsn="shp5m",layer = "cb_2018_us_state_5m")
 summary(shp_states@data)
 shp_48statesAndDC <- shp_states[-c(40,48,49,50,52,56,28),]
 summary(shp_48statesAndDC@data)
 
-shp2 <- read_sf("/Users/cj/Documents/美国新冠病毒案例/shp5m/cb_2018_us_state_5m.shp")
+shp2 <- read_sf("cb_2018_us_state_5m.shp")
+#keep 48 states and DC only
 shp2_48andDC <- shp2[-c(40,48,49,50,52,56,28),]
 #================Draw the map without attributes
 map_states <- ggplot()+geom_polygon(data = shp_48statesAndDC,
@@ -20,6 +21,8 @@ map_states <- ggplot()+geom_polygon(data = shp_48statesAndDC,
                                         y=lat,
                                         group=group),
                                     colour="black") + theme_void()
+#================read covariates
+df2 = read.csv("by48state0527.csv")
 #================Draw the map with discretized pop density
 shp2_48andDC$Pop = df2$Pop
 shp2_48andDC$PopDens = df2$Popdensity %>% cut_number(n=7)
