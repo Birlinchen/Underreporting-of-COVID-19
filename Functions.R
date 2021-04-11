@@ -2,43 +2,39 @@
 ##     Correcting Under-Reporting      ##
 ##              Functions              ##
 #########################################
-
-# Function to simulate Intrinsic Conditional Autoregressive Fields
-# by Devin Johnson (not associated with authors of paper).
-ricar_simple <- function(Q){
-  v <- eigen(Q, TRUE)
-  val.inv <- sqrt(ifelse(v$values>sqrt(.Machine$double.eps), 1/v$values, 0))
-  P <- v$vectors
-  sim <- P%*%diag(val.inv)%*%rnorm(dim(Q)[1], 0, 1)
-  X <- rep(1,length(sim))
-  if(sum(val.inv==0)==2) X <- cbind(X, 1:length(sim))
-  sim <- sim-X%*%solve(crossprod(X), crossprod(X,sim))
-  return(sim)
+library(nimble)
+# Function to compute kronecker production
+kronecker_prod <- function(A, B) {
+  C = matrix(data=0, nrow=nrow(A)*nrow(B), ncol = ncol(A)*ncol(B))
+  m = nrow(A)
+  n = ncol(A)
+  p = nrow(B)
+  q = ncol(B)
+  for (r in 1:m) {
+    for (s in 1:n) {
+      for (v in 1:p) {
+        for (w in 1:q){
+          C[p*(r-1)+v,q*(s-1)+w] = A[r,s]*B[v,w];
+        }
+      }
+      
+    }
+  }
+  C
 }
 
-# Rewritten as the above function crashes R if used in a for loop.
-ricar <- nimbleFunction(run=function(Q=double(2),epsilon=double(0)){
-  v <- nimEigen(Q, symmetric=TRUE)
-  v.inv<-numeric(length(v$values))
-  index <- v$values>sqrt(epsilon)
-  v.inv[index] <- sqrt(1/v$values[index])
-  v.inv[!index] <- 0
-  P <- v$vectors
-  sim <- P%*%diag(v.inv)%*%rnorm(dim(Q)[1], 0, 1)
-  if(sum(v.inv==0)==2){
-    X=matrix(nrow=length(sim),ncol=2)
-    X[,1]<- rep(1,length(sim))
-    X[,2] <- 1:length(sim)
-    sim <- sim-X%*%solve(X%*%X,X%*%sim)
-  }else{
-    Y<- rep(1,length(sim))
-    sim <- sim-Y%*%solve(Y%*%Y,Y%*%sim)
-  }
-  returnType(double(2))
-  return(sim)
-})
+#A1 = matrix(data=c(1,3,2,4),nrow=2)
+#B1 = matrix(data=c(0,6,5,7),nrow=2) 
 
-#ricar_compiled <- compileNimble(ricar)
+#kronecker_prod(A1,B1)
+
+#A2 = matrix(data=c(1,-2,-4,3,7,3),nrow=2)
+#B2 = matrix(data=c(8,1,2,1,
+#                   -9,-3,8,2,
+#                   -6,-4,-8,-5,
+#                   5,7,-3,-1),nrow=4)
+#kronecker_prod(A2,B2)
+
 
 # This function was found online at:
 # http://www.cookbook-r.com/Graphs/Multiple_graphs_on_one_page_(ggplot2)/
@@ -80,3 +76,25 @@ multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
 }
 
 tran_var=function(x){(x-mean(x))/sd(x)}
+
+#######################mungeCardata4stan############################
+mungeCARdata4stan = function(adjBUGS,numBUGS) {
+  N = length(numBUGS);
+  nn = numBUGS;
+  N_edges = length(adjBUGS) / 2;
+  node1 = vector(mode="numeric", length=N_edges);
+  node2 = vector(mode="numeric", length=N_edges);
+  iAdj = 0;
+  iEdge = 0;
+  for (i in 1:N) {
+    for (j in 1:nn[i]) {
+      iAdj = iAdj + 1;
+      if (i < adjBUGS[iAdj]) {
+        iEdge = iEdge + 1;
+        node1[iEdge] = i;
+        node2[iEdge] = adjBUGS[iAdj];
+      }
+    }
+  }
+  return (list("N"=N,"N_edges"=N_edges,"node1"=node1,"node2"=node2));
+}
